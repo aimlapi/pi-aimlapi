@@ -55,6 +55,10 @@ Anthropic subscription auth is active for Claude Pro/Max accounts. Third-party h
 
 Radius is a dynamic `pi-messages` gateway. `/login radius` stores OAuth tokens in `auth.json`; the gateway catalog is refreshed independently and cached in `models-store.json`. Custom Radius gateways can be declared in `models.json` with `"oauth": "radius"` and a gateway `baseUrl`.
 
+### AIMLAPI
+
+AIMLAPI is an OpenAI-compatible aggregator with 1000+ models. Its catalog is not bundled, so the chat model list is fetched from `/v1/models` at runtime and cached in `models-store.json`. Set `AIMLAPI_API_KEY` (or `/login aimlapi` → **Sign in with an API key**) to use it. The inference base URL defaults to `https://api.aimlapi.com/v1` and can be overridden with `AIMLAPI_INFERENCE_URL`.
+
 ## API Keys
 
 ### Environment Variables or Auth File
@@ -68,6 +72,7 @@ pi
 
 | Provider | Environment Variable | `auth.json` key |
 |----------|----------------------|------------------|
+| AIMLAPI | `AIMLAPI_API_KEY` | `aimlapi` |
 | Anthropic | `ANTHROPIC_API_KEY` | `anthropic` |
 | Ant Ling | `ANT_LING_API_KEY` | `ant-ling` |
 | Azure OpenAI Responses | `AZURE_OPENAI_API_KEY` | `azure-openai-responses` |
