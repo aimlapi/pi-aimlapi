@@ -73,28 +73,25 @@ describe.sequential("AI/ML API OAuth", () => {
 		expect(keyAuthHeader).toBe("Bearer session-token");
 	});
 
-	it("creates a new account without requesting a code when the account does not exist", async () => {
+	it("creates a new account but does not attempt to mint a key — a fresh account is inactive until its first top-up", async () => {
 		const calls: string[] = [];
-		vi.stubGlobal(
-			"fetch",
-			vi.fn(async (input: string | URL | Request) => {
-				const url = input instanceof Request ? input.url : String(input);
-				calls.push(url);
-				if (url === ACCOUNT_URL) return jsonResponse({ action: "sign-up" });
-				if (url === PASSWORDLESS_URL) return jsonResponse({ token: "new-session-token", exp: 9999999999 });
-				if (url === KEYS_URL) return jsonResponse({ key: "aiml-new-key", id: "key-2" });
-				throw new Error(`Unexpected request: ${url}`);
-			}),
-		);
-
-		const credential = await aimlapiOAuth.login({
-			signal: neverAbortedSignal,
-			prompt: async () => "new-user@example.com",
-			notify: () => {},
+		const fetchMock = vi.fn(async (input: string | URL | Request) => {
+			const url = input instanceof Request ? input.url : String(input);
+			calls.push(url);
+			if (url === ACCOUNT_URL) return jsonResponse({ action: "sign-up" });
+			if (url === PASSWORDLESS_URL) return jsonResponse({ token: "new-session-token", exp: 9999999999 });
+			throw new Error(`Unexpected request: ${url}`);
 		});
+		vi.stubGlobal("fetch", fetchMock);
 
-		expect(credential).toMatchObject({ access: "aiml-new-key" });
-		expect(calls).toEqual([ACCOUNT_URL, PASSWORDLESS_URL, KEYS_URL]);
+		await expect(
+			aimlapiOAuth.login({
+				signal: neverAbortedSignal,
+				prompt: async () => "new-user@example.com",
+				notify: () => {},
+			}),
+		).rejects.toThrow(/Account created for new-user@example.com.*run \/login again/);
+		expect(calls).toEqual([ACCOUNT_URL, PASSWORDLESS_URL]);
 	});
 
 	it("rejects an account linked to a third-party sign-in provider", async () => {
