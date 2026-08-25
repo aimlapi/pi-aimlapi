@@ -156,6 +156,7 @@ const lazyResult = await build({
 	...commonBuildOptions(),
 	entryNames: "[name]",
 	entryPoints: {
+		aimlapi: join(aiDistDir, "auth", "oauth", "aimlapi.js"),
 		anthropic: join(aiDistDir, "auth", "oauth", "anthropic.js"),
 		"bedrock-converse-stream": join(aiDistDir, "api", "bedrock-converse-stream.js"),
 		"github-copilot": join(aiDistDir, "auth", "oauth", "github-copilot.js"),
