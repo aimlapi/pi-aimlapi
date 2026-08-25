@@ -3,6 +3,7 @@ import type { SettingsManager } from "./settings-manager.ts";
 import { isInstallTelemetryEnabled } from "./telemetry.ts";
 
 const OPENROUTER_HOST = "openrouter.ai";
+const AIMLAPI_HOST = "api.aimlapi.com";
 const NVIDIA_NIM_HOST = "integrate.api.nvidia.com";
 const CLOUDFLARE_API_HOST = "api.cloudflare.com";
 const CLOUDFLARE_AI_GATEWAY_HOST = "gateway.ai.cloudflare.com";
@@ -18,6 +19,10 @@ function matchesHost(baseUrl: string, expectedHost: string): boolean {
 
 function isOpenRouterModel(model: Model<Api>): boolean {
 	return model.provider === "openrouter" || model.baseUrl.includes(OPENROUTER_HOST);
+}
+
+function isAimlapiModel(model: Model<Api>): boolean {
+	return model.provider === "aimlapi" || matchesHost(model.baseUrl, AIMLAPI_HOST);
 }
 
 function isNvidiaNimModel(model: Model<Api>): boolean {
@@ -46,6 +51,18 @@ function getDefaultAttributionHeaders(
 			"HTTP-Referer": "https://pi.dev",
 			"X-OpenRouter-Title": "pi",
 			"X-OpenRouter-Categories": "cli-agent",
+		};
+	}
+
+	if (isAimlapiModel(model)) {
+		return {
+			// Rebate attribution id (part_...) for the "pi" partner row in AI/ML
+			// API's rebate_partners table — do not repoint this to a different
+			// partner without also updating the backend record.
+			"X-AIMLAPI-Partner-ID": "part_0OJphKWIKTIItaGwnhjmaGJI",
+			"X-AIMLAPI-Source": "agent/pi",
+			"HTTP-Referer": "https://pi.dev",
+			"X-Title": "pi",
 		};
 	}
 
