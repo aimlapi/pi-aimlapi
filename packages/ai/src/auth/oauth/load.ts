@@ -12,6 +12,7 @@ const importOAuthModule = (specifier: string): Promise<unknown> => {
 };
 
 type OAuthFlowLoaders = {
+	aimlapi: () => OAuthAuth | Promise<OAuthAuth>;
 	anthropic: () => OAuthAuth | Promise<OAuthAuth>;
 	openaiCodex: () => OAuthAuth | Promise<OAuthAuth>;
 	githubCopilot: () => OAuthAuth | Promise<OAuthAuth>;
@@ -27,6 +28,11 @@ let bundledLoaders: OAuthFlowLoaders | undefined;
 export function registerBundledOAuthFlowLoaders(loaders: OAuthFlowLoaders): void {
 	bundledLoaders = loaders;
 }
+
+export const loadAimlapiOAuth = async (): Promise<OAuthAuth> => {
+	if (bundledLoaders) return bundledLoaders.aimlapi();
+	return ((await importOAuthModule("./aimlapi.ts")) as { aimlapiOAuth: OAuthAuth }).aimlapiOAuth;
+};
 
 export const loadAnthropicOAuth = async (): Promise<OAuthAuth> => {
 	if (bundledLoaders) return bundledLoaders.anthropic();
