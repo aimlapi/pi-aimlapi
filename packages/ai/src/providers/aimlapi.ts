@@ -6,7 +6,7 @@ import { AIMLAPI_MODELS } from "./aimlapi.models.ts";
 export function aimlapiProvider(): Provider<"openai-completions"> {
 	return createProvider({
 		id: "aimlapi",
-		name: "AI/ML API",
+		name: "aimlapi.com",
 		baseUrl: "https://api.aimlapi.com/v1",
 		auth: {
 			apiKey: envApiKeyAuth("AI/ML API key", ["AIMLAPI_API_KEY"]),
