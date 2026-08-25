@@ -1108,6 +1108,100 @@ async function fetchOpenRouterModels(): Promise<Model<any>[]> {
 	}
 }
 
+const AIMLAPI_MODELS_URL = "https://api.aimlapi.com/v1/models?include=pricing";
+const AIMLAPI_BASE_URL = "https://api.aimlapi.com/v1";
+
+interface AimlapiPricingUnit {
+	content?: string;
+	author?: string;
+	origin?: string;
+	phase?: string;
+	price?: number;
+	per?: number;
+}
+
+interface AimlapiPricingThreshold {
+	from: number;
+	units: AimlapiPricingUnit[];
+}
+
+interface AimlapiPricing {
+	units?: AimlapiPricingUnit[];
+	thresholds?: AimlapiPricingThreshold[];
+}
+
+/** $/unit-price -> $/million tokens, honoring the unit's own `per` denominator. */
+function aimlapiRate(units: AimlapiPricingUnit[] | undefined, match: Partial<AimlapiPricingUnit>): number {
+	const unit = units?.find((candidate) =>
+		Object.entries(match).every(([key, value]) => candidate[key as keyof AimlapiPricingUnit] === value),
+	);
+	if (!unit || typeof unit.price !== "number") return 0;
+	const per = unit.per || 1_000_000;
+	return roundCost((unit.price * 1_000_000) / per);
+}
+
+function aimlapiCostFromUnits(units: AimlapiPricingUnit[] | undefined): ModelCost {
+	return {
+		input: aimlapiRate(units, { content: "text", author: "user", origin: "provided" }),
+		output: aimlapiRate(units, { content: "text", author: "model", origin: "generated", phase: "inference" }),
+		cacheRead: aimlapiRate(units, { content: "text", author: "user", origin: "cached" }),
+		cacheWrite: aimlapiRate(units, { content: "text", author: "user", origin: "cache_write" }),
+	};
+}
+
+/**
+ * AI/ML API's public catalog exposes live pricing (`?include=pricing`) but no
+ * tool-calling capability flag, so — matching the filter our own OpenClaude
+ * fork's aimlapi gateway already applies — every `openai/chat-completions`
+ * entry is included rather than guessing per-model tool support.
+ */
+async function fetchAimlapiModels(): Promise<Model<any>[]> {
+	try {
+		console.log("Fetching models from AI/ML API...");
+		const response = await fetch(AIMLAPI_MODELS_URL);
+		if (!response.ok) throw new Error(`AI/ML API returned ${response.status}`);
+		const data = await response.json();
+
+		const models: Model<any>[] = [];
+		const seen = new Set<string>();
+		for (const model of data.data ?? []) {
+			if (model.type !== "openai/chat-completions") continue;
+			if (seen.has(model.id)) continue;
+			seen.add(model.id);
+
+			const pricing: AimlapiPricing | undefined = model.pricing;
+			const baseCost = aimlapiCostFromUnits(pricing?.units);
+			// A reasoning-phase output unit means the model bills (and thus supports) thinking tokens.
+			const reasoning = (pricing?.units ?? []).some((unit) => unit.phase === "reasoning");
+			const tiers = (pricing?.thresholds ?? [])
+				.filter((threshold) => threshold.from > 0)
+				.map((threshold) => ({ inputTokensAbove: threshold.from, ...aimlapiCostFromUnits(threshold.units) }));
+
+			const contextWindow = model.info?.contextLength || 4096;
+
+			models.push({
+				id: model.id,
+				name: model.info?.name || model.id,
+				api: "openai-completions",
+				baseUrl: AIMLAPI_BASE_URL,
+				provider: "aimlapi",
+				reasoning,
+				input: ["text"],
+				cost: tiers.length > 0 ? { ...baseCost, tiers } : baseCost,
+				contextWindow,
+				maxTokens: Math.min(contextWindow, 8192),
+			});
+		}
+
+		console.log(`Fetched ${models.length} chat models from AI/ML API`);
+		return models;
+	} catch (error) {
+		console.error("Failed to fetch AI/ML API models:", error);
+		if (generatorOptions.strict) throw error;
+		return [];
+	}
+}
+
 async function fetchAiGatewayModels(): Promise<Model<any>[]> {
 	try {
 		console.log("Fetching models from Vercel AI Gateway API...");
@@ -2372,9 +2466,10 @@ async function generateModels() {
 	const modelsDevModels = await loadModelsDevData();
 	const openRouterModels = await fetchOpenRouterModels();
 	const aiGatewayModels = await fetchAiGatewayModels();
+	const aimlapiModels = await fetchAimlapiModels();
 
 	// Combine models (models.dev has priority)
-	const allModels = [...modelsDevModels, ...openRouterModels, ...aiGatewayModels].filter(
+	const allModels = [...modelsDevModels, ...openRouterModels, ...aiGatewayModels, ...aimlapiModels].filter(
 		(model) =>
 			!(model.provider === "xai" && XAI_BUILTIN_EXCLUDED_MODEL_IDS.has(model.id)) &&
 			!((model.provider === "opencode" || model.provider === "opencode-go") && model.id === "gpt-5.3-codex-spark"),
