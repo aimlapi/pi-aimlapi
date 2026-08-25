@@ -94,19 +94,27 @@ describe.sequential("AI/ML API OAuth", () => {
 		expect(calls).toEqual([ACCOUNT_URL, PASSWORDLESS_URL]);
 	});
 
-	it("rejects an account linked to a third-party sign-in provider", async () => {
+	it("signs in an account linked to a third-party provider through the same emailed code — sign-in/code/verify has no provider dependency", async () => {
 		vi.stubGlobal(
 			"fetch",
-			vi.fn(async () => jsonResponse({ action: "sign-in", provider: "google" })),
+			vi.fn(async (input: string | URL | Request) => {
+				const url = input instanceof Request ? input.url : String(input);
+				if (url === ACCOUNT_URL) return jsonResponse({ action: "sign-in", provider: "google" });
+				if (url === SEND_CODE_URL) return new Response(null, { status: 204 });
+				if (url === VERIFY_CODE_URL) return jsonResponse({ token: "session-token", exp: 9999999999 });
+				if (url === KEYS_URL) return jsonResponse({ key: "aiml-google-key", id: "key-3" });
+				throw new Error(`Unexpected request: ${url}`);
+			}),
 		);
 
-		await expect(
-			aimlapiOAuth.login({
-				signal: neverAbortedSignal,
-				prompt: async () => "user@example.com",
-				notify: () => {},
-			}),
-		).rejects.toThrow(/signs in via google/);
+		const prompts = ["user@example.com", "123456"];
+		const credential = await aimlapiOAuth.login({
+			signal: neverAbortedSignal,
+			prompt: async () => prompts.shift() ?? "",
+			notify: () => {},
+		});
+
+		expect(credential).toMatchObject({ access: "aiml-google-key" });
 	});
 
 	it("reports an invalid verification code", async () => {

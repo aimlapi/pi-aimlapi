@@ -132,11 +132,9 @@ async function loginAimlapi(interaction: ProviderAuthInteraction): Promise<OAuth
 		);
 	}
 
-	if (account.provider) {
-		throw new Error(
-			`This email signs in via ${account.provider} on AI/ML API — sign in at https://aimlapi.com/app and create an API key manually instead.`,
-		);
-	}
+	// A correct emailed code proves ownership regardless of how the account was
+	// originally created — sign-in/code/verify has no dependency on a linked
+	// OAuth provider (e.g. Google), so this path works even for those accounts.
 	await sendSignInCode(email, interaction.signal);
 	interaction.notify({ type: "info", message: `A 6-digit code was sent to ${email}.` });
 	const rawCode = await interaction.prompt({ type: "text", message: "Enter the 6-digit code" });
