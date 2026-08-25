@@ -1,3 +1,4 @@
+import { aimlapiOAuth } from "./auth/oauth/aimlapi.ts";
 import { anthropicOAuth } from "./auth/oauth/anthropic.ts";
 import { githubCopilotOAuth } from "./auth/oauth/github-copilot.ts";
 import { kimiCodingOAuth } from "./auth/oauth/kimi-coding.ts";
@@ -10,6 +11,7 @@ import { xaiOAuth } from "./auth/oauth/xai.ts";
 /** Register OAuth flows statically embedded in the standalone Bun binary. */
 export function registerBunOAuthFlows(): void {
 	registerBundledOAuthFlowLoaders({
+		aimlapi: () => aimlapiOAuth,
 		anthropic: () => anthropicOAuth,
 		openaiCodex: () => openaiCodexOAuth,
 		githubCopilot: () => githubCopilotOAuth,
