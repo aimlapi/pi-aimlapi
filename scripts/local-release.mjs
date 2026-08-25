@@ -13,6 +13,7 @@ const packages = [
 	{ directory: "packages/protocol", name: "@earendil-works/pi-protocol" },
 	{ directory: "packages/client", name: "@earendil-works/pi-client" },
 	{ directory: "packages/session-backends/sqlite-node", name: "@earendil-works/pi-session-backend-sqlite-node" },
+	{ directory: "packages/server", name: "@earendil-works/pi-server" },
 	{ directory: "packages/coding-agent", name: "@earendil-works/pi-coding-agent" },
 ];
 
@@ -194,7 +195,9 @@ function packPackage(pkg, tarballDirectory) {
 		capture: true,
 		cwd: pkg.directory,
 	});
-	const packed = JSON.parse(output)[0];
+	// npm <11.6 returns an array; newer npm returns an object keyed by package name.
+	const parsed = JSON.parse(output);
+	const packed = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];
 	return join(tarballDirectory, packed.filename);
 }
 
