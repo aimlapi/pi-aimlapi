@@ -119,23 +119,28 @@ async function loginAimlapi(interaction: ProviderAuthInteraction): Promise<OAuth
 	interaction.notify({ type: "progress", message: "Checking your AI/ML API account..." });
 	const account = await checkAccount(email, interaction.signal);
 
-	let sessionToken: string;
 	if (account.action === "sign-up") {
+		// A freshly created passwordless account is inactive until its first top-up
+		// (AI/ML API mints API keys only for active accounts), so there is no key to
+		// hand back here yet — create the account and send the user to fund it.
 		interaction.notify({ type: "progress", message: "Creating your AI/ML API account..." });
-		sessionToken = await exchangeForToken("/v1/auth/account/passwordless", { email }, interaction.signal);
-	} else {
-		if (account.provider) {
-			throw new Error(
-				`This email signs in via ${account.provider} on AI/ML API — sign in at https://aimlapi.com/app and create an API key manually instead.`,
-			);
-		}
-		await sendSignInCode(email, interaction.signal);
-		interaction.notify({ type: "info", message: `A 6-digit code was sent to ${email}.` });
-		const rawCode = await interaction.prompt({ type: "text", message: "Enter the 6-digit code" });
-		const code = rawCode.trim();
-		if (!code) throw new Error("Code is required");
-		sessionToken = await exchangeForToken("/v1/auth/sign-in/code/verify", { email, code }, interaction.signal);
+		await exchangeForToken("/v1/auth/account/passwordless", { email }, interaction.signal);
+		throw new Error(
+			`Account created for ${email}. Add credit at https://aimlapi.com/app, then run /login again to sign in.`,
+		);
 	}
+
+	if (account.provider) {
+		throw new Error(
+			`This email signs in via ${account.provider} on AI/ML API — sign in at https://aimlapi.com/app and create an API key manually instead.`,
+		);
+	}
+	await sendSignInCode(email, interaction.signal);
+	interaction.notify({ type: "info", message: `A 6-digit code was sent to ${email}.` });
+	const rawCode = await interaction.prompt({ type: "text", message: "Enter the 6-digit code" });
+	const code = rawCode.trim();
+	if (!code) throw new Error("Code is required");
+	const sessionToken = await exchangeForToken("/v1/auth/sign-in/code/verify", { email, code }, interaction.signal);
 
 	interaction.notify({ type: "progress", message: "Creating an AI/ML API key for pi..." });
 	const key = await createKey(sessionToken, interaction.signal);
