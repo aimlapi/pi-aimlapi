@@ -63,8 +63,10 @@ async function request(
 		options.signal.removeEventListener("abort", onAbort);
 	}
 
+	const label = `${method} ${url}`;
+
 	if (options.expectJson === false) {
-		if (!response.ok) throw new Error(`AI/ML API request failed (HTTP ${response.status})`);
+		if (!response.ok) throw new Error(`AI/ML API request failed: ${label} -> HTTP ${response.status}`);
 		return undefined;
 	}
 
@@ -73,12 +75,12 @@ async function request(
 		const parsed = (await response.json()) as unknown;
 		if (isRecord(parsed)) body = parsed;
 	} catch {
-		if (response.ok) throw new Error("AI/ML API returned invalid JSON");
+		if (response.ok) throw new Error(`AI/ML API returned invalid JSON: ${label}`);
 	}
 
 	if (!response.ok) {
 		const detail = errorDetail(body);
-		throw new Error(`AI/ML API request failed (HTTP ${response.status})${detail ? `: ${detail}` : ""}`);
+		throw new Error(`AI/ML API request failed: ${label} -> HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
 	}
 	return body;
 }

@@ -128,7 +128,7 @@ describe.sequential("AI/ML API OAuth", () => {
 				prompt: async () => prompts.shift() ?? "",
 				notify: () => {},
 			}),
-		).rejects.toThrow("AI/ML API request failed (HTTP 400): invalid code");
+		).rejects.toThrow(`AI/ML API request failed: POST ${VERIFY_CODE_URL} -> HTTP 400: invalid code`);
 	});
 
 	it("rejects a successful key response that carries no key", async () => {
