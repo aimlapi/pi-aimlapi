@@ -26,7 +26,7 @@ describe.sequential("AI/ML API OAuth", () => {
 		const provider = aimlapiProvider();
 		expect(provider.auth.apiKey).toBeDefined();
 		expect(provider.auth.oauth).toBeDefined();
-		expect(provider.auth.oauth?.loginLabel).toBe("Sign in with AI/ML API");
+		expect(provider.auth.oauth?.loginLabel).toBe("Sign in with aimlapi.com");
 	});
 
 	it("signs in an existing account with an emailed code and mints an API key", async () => {
@@ -136,7 +136,7 @@ describe.sequential("AI/ML API OAuth", () => {
 				prompt: async () => prompts.shift() ?? "",
 				notify: () => {},
 			}),
-		).rejects.toThrow(`AI/ML API request failed: POST ${VERIFY_CODE_URL} -> HTTP 400: invalid code`);
+		).rejects.toThrow(`aimlapi.com request failed: POST ${VERIFY_CODE_URL} -> HTTP 400: invalid code`);
 	});
 
 	it("rejects a successful key response that carries no key", async () => {
@@ -159,7 +159,7 @@ describe.sequential("AI/ML API OAuth", () => {
 				prompt: async () => prompts.shift() ?? "",
 				notify: () => {},
 			}),
-		).rejects.toThrow("AI/ML API did not return an API key");
+		).rejects.toThrow("aimlapi.com did not return an API key");
 	});
 
 	it("rejects an empty email without making a request", async () => {

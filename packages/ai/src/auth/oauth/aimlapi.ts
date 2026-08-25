@@ -38,7 +38,7 @@ async function request(
 	const onAbort = () => controller.abort(options.signal.reason);
 	options.signal.addEventListener("abort", onAbort, { once: true });
 	const timeout = setTimeout(
-		() => controller.abort(new Error(`AI/ML API request to ${url} timed out`)),
+		() => controller.abort(new Error(`aimlapi.com request to ${url} timed out`)),
 		REQUEST_TIMEOUT_MS,
 	);
 
@@ -56,7 +56,7 @@ async function request(
 		});
 	} catch (error) {
 		if (options.signal.aborted) throw new Error("Login cancelled");
-		if (controller.signal.aborted) throw new Error(`AI/ML API request to ${url} timed out`);
+		if (controller.signal.aborted) throw new Error(`aimlapi.com request to ${url} timed out`);
 		throw error;
 	} finally {
 		clearTimeout(timeout);
@@ -66,7 +66,7 @@ async function request(
 	const label = `${method} ${url}`;
 
 	if (options.expectJson === false) {
-		if (!response.ok) throw new Error(`AI/ML API request failed: ${label} -> HTTP ${response.status}`);
+		if (!response.ok) throw new Error(`aimlapi.com request failed: ${label} -> HTTP ${response.status}`);
 		return undefined;
 	}
 
@@ -75,12 +75,12 @@ async function request(
 		const parsed = (await response.json()) as unknown;
 		if (isRecord(parsed)) body = parsed;
 	} catch {
-		if (response.ok) throw new Error(`AI/ML API returned invalid JSON: ${label}`);
+		if (response.ok) throw new Error(`aimlapi.com returned invalid JSON: ${label}`);
 	}
 
 	if (!response.ok) {
 		const detail = errorDetail(body);
-		throw new Error(`AI/ML API request failed: ${label} -> HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
+		throw new Error(`aimlapi.com request failed: ${label} -> HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
 	}
 	return body;
 }
@@ -91,7 +91,8 @@ async function checkAccount(
 ): Promise<{ action: "sign-in" | "sign-up"; provider?: string }> {
 	const body = await request("PATCH", `${AUTH_BASE_URL}/v1/auth/account`, { body: { email }, signal });
 	const action = body?.action;
-	if (action !== "sign-in" && action !== "sign-up") throw new Error("AI/ML API returned an invalid account response");
+	if (action !== "sign-in" && action !== "sign-up")
+		throw new Error("aimlapi.com returned an invalid account response");
 	return { action, provider: typeof body?.provider === "string" ? body.provider : undefined };
 }
 
@@ -102,30 +103,30 @@ async function sendSignInCode(email: string, signal: AbortSignal): Promise<void>
 async function exchangeForToken(path: string, body: JsonObject, signal: AbortSignal): Promise<string> {
 	const result = await request("POST", `${AUTH_BASE_URL}${path}`, { body, signal });
 	const token = result?.token;
-	if (typeof token !== "string" || token.length === 0) throw new Error("AI/ML API did not return an auth token");
+	if (typeof token !== "string" || token.length === 0) throw new Error("aimlapi.com did not return an auth token");
 	return token;
 }
 
 async function createKey(bearer: string, signal: AbortSignal): Promise<string> {
 	const result = await request("POST", `${APP_BASE_URL}/v1/keys`, { body: { name: KEY_NAME }, bearer, signal });
 	const key = result?.key;
-	if (typeof key !== "string" || key.length === 0) throw new Error("AI/ML API did not return an API key");
+	if (typeof key !== "string" || key.length === 0) throw new Error("aimlapi.com did not return an API key");
 	return key;
 }
 
 async function loginAimlapi(interaction: ProviderAuthInteraction): Promise<OAuthCredential> {
-	const rawEmail = await interaction.prompt({ type: "text", message: "Enter your AI/ML API account email" });
+	const rawEmail = await interaction.prompt({ type: "text", message: "Enter your aimlapi.com account email" });
 	const email = rawEmail.trim();
 	if (!email) throw new Error("Email is required");
 
-	interaction.notify({ type: "progress", message: "Checking your AI/ML API account..." });
+	interaction.notify({ type: "progress", message: "Checking your aimlapi.com account..." });
 	const account = await checkAccount(email, interaction.signal);
 
 	if (account.action === "sign-up") {
 		// A freshly created passwordless account is inactive until its first top-up
 		// (AI/ML API mints API keys only for active accounts), so there is no key to
 		// hand back here yet — create the account and send the user to fund it.
-		interaction.notify({ type: "progress", message: "Creating your AI/ML API account..." });
+		interaction.notify({ type: "progress", message: "Creating your aimlapi.com account..." });
 		await exchangeForToken("/v1/auth/account/passwordless", { email }, interaction.signal);
 		throw new Error(
 			`Account created for ${email}. Add credit at https://aimlapi.com/app, then run /login again to sign in.`,
@@ -142,7 +143,7 @@ async function loginAimlapi(interaction: ProviderAuthInteraction): Promise<OAuth
 	if (!code) throw new Error("Code is required");
 	const sessionToken = await exchangeForToken("/v1/auth/sign-in/code/verify", { email, code }, interaction.signal);
 
-	interaction.notify({ type: "progress", message: "Creating an AI/ML API key for pi..." });
+	interaction.notify({ type: "progress", message: "Creating an aimlapi.com key for pi..." });
 	const key = await createKey(sessionToken, interaction.signal);
 
 	return {
@@ -154,8 +155,8 @@ async function loginAimlapi(interaction: ProviderAuthInteraction): Promise<OAuth
 }
 
 export const aimlapiOAuth: OAuthAuth = {
-	name: "AI/ML API sign-in",
-	loginLabel: "Sign in with AI/ML API",
+	name: "aimlapi.com sign-in",
+	loginLabel: "Sign in with aimlapi.com",
 	login: loginAimlapi,
 	async refresh(credential, _signal) {
 		return credential;
